@@ -44,19 +44,13 @@ function hasOnlyDoubleDigits(numberArg){
     for(let digit of number){
         histogram[digit]++;
     }
-
-    let hasDouble = false;
-    let hasTriple = false;
     for(let column of histogram){
         if(column==2){
-            hasDouble = true
-        }
-        if(column > 2){
-            hasTriple = true;
+            return true;
         }
     }
 
-    return hasDouble;
+    return false;
 }
 
 let betterMatchingNumbers = [];
