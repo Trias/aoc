@@ -1,0 +1,25 @@
+1. rust
+2. c
+3. php
+4. javascript
+5. ruby
+6. python
+7. elixir
+8. erlang
+9. scheme
+10. prolog
+11. haskell
+12. R
+13. Swift
+14. SQL
+15. COBOL (lol)
+16. Java
+17. clojure
+18. f#
+19. c#
+20. lua
+21. OCaml
+22. perl
+23. shell
+24. scratch
+25. go
