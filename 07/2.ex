@@ -79,30 +79,18 @@ defmodule IntComputer do
         end
 
       7 ->
-        if get_value(memory, ip, 1) < get_value(memory, ip, 2) do
-            %{program_state |
-                memory: %{memory | memory[ip + 3] => 1},
-                ip: ip + instruction_length
-            }
-        else
-            %{program_state |
-                memory: %{memory | memory[ip + 3] => 0},
-                ip: ip + instruction_length
-            }
-        end
+        flag = if get_value(memory, ip, 1) < get_value(memory, ip, 2) do 1 else 0 end
+        %{program_state |
+            memory: %{memory | memory[ip + 3] => flag},
+            ip: ip + instruction_length
+        }
 
       8 ->
-        if get_value(memory, ip, 1) == get_value(memory, ip, 2) do
-            %{program_state |
-                memory: %{memory | memory[ip + 3] => 1},
-                ip: ip + instruction_length
-            }
-        else
-            %{program_state |
-                memory: %{memory | memory[ip + 3] => 0},
-                ip: ip + instruction_length
-            }
-        end
+        flag = if get_value(memory, ip, 1) == get_value(memory, ip, 2) do 1 else 0 end
+        %{program_state |
+            memory: %{memory | memory[ip + 3] => flag},
+            ip: ip + instruction_length
+        }
 
       99 -> %{program_state | halt: true}
       _ ->
@@ -142,7 +130,6 @@ defmodule IntComputer do
       Enum.with_index(amps)
       |> Enum.map(fn({amp, index}) -> IntComputer.run(%{amp| input: amp.input ++ Enum.at(amps, rem(index+4, 5)).output, output: []}) end)
       |> run_all_with_feedback_loop
-
     end
   end
 end
@@ -167,22 +154,17 @@ memory =
   |> Enum.with_index
   |> Enum.map(fn({x, y}) -> {y, x} end)
   |> Enum.into(%{})
-halt = false
-ip = 0
 
-program_state = %{id: 0, memory: memory, ip: ip, halt: halt, input: [], output: [], wait: false}
+program_state = %{id: 0, memory: memory, ip: 0, halt: false, input: [], output: [], wait: false}
 
-max2 =
-  Helper.permutations([5, 6, 7, 8, 9])
-  |> Enum.map(fn input ->
-      amps = input |> Enum.map(fn(setting) -> IntComputer.run(%{program_state | input: [setting]}) end)
-      [head | tail] = amps
-      head = IntComputer.run(%{head | input: [0]})
-      amps = [head | tail]
-      amps = IntComputer.run_all_with_feedback_loop(amps)
+Helper.permutations([5, 6, 7, 8, 9])
+|> Enum.map(fn input ->
+    amps = input
+      |> Enum.map(fn(setting) -> %{program_state | input: [setting]} end)
+      |> (&([%{hd(&1) | input: hd(&1)[:input] ++ [0]} | tl(&1)])).() # wow, very readable
+      |> IntComputer.run_all_with_feedback_loop
 
-      Enum.at(List.last(amps).output, 0)
-    end)
-  |> Enum.max
-
-IO.inspect(max2)
+    Enum.at(List.last(amps).output, 0)
+  end)
+|> Enum.max
+|> IO.inspect
