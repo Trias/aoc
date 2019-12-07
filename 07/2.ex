@@ -124,7 +124,7 @@ defmodule IntComputer do
   def run_all_with_feedback_loop(amps) do
     amps = Enum.map(amps, fn amp -> %{amp | wait: false} end)
 
-    if Enum.reduce(amps, true, fn(cur, acc) -> acc && cur.halt end) do
+    if Enum.all?(amps, fn(cur) -> cur.halt end) do
       amps
     else
       Enum.with_index(amps)
