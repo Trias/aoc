@@ -3,42 +3,79 @@ main:-
     %writePrettyMap(Map),
     findAsteroids(Map, 0, Asteroids),
     rayCasting(Asteroids, Asteroids, VisibleAsteroidsByAsteroid),
-    bestAsteroid(VisibleAsteroidsByAsteroid, BestAsteroid, _, 0, Count),
+    bestAsteroid(VisibleAsteroidsByAsteroid, BestAsteroid, _, 0, Count, _, _),
     writeTupel(BestAsteroid),
-    CountWithoutMe is Count -1,
-    write(CountWithoutMe).
+    write(Count).
     %writeTupels(Asteroids).
 
-bestAsteroid([], BestAsteroid, BestAsteroid, Count, Count).
-bestAsteroid([visible(Head, FilteredRaysToOtherAsteroids)|VisibleAsteroidsByAsteroid], BestAsteroid, BestAsteroidSoFar, Count, CountOut) :-
+main2:-
+    read_file("input.txt", Map),
+    %writePrettyMap(Map),
+    findAsteroids(Map, 0, Asteroids),
+    rayCasting(Asteroids, Asteroids, VisibleAsteroidsByAsteroid),
+    bestAsteroid(VisibleAsteroidsByAsteroid, BestAsteroid, _, 0, _, _, RaysOut),
+    sortClockwise(RaysOut, SortedRays),
+    shootLaserAndRotate(BestAsteroid, SortedRays, Asteroids, 200, _, XHit),
+    write(XHit).
+
+sortClockwise(Rays, SortedRays):-
+    predsort(clockWiseCompare, Rays, SortedRays).
+
+clockWiseCompare(Delta, direction(X1, Y1), direction(X2, Y2)):-
+    D2 is atan2(X2, Y2),
+    D1 is atan2(X1, Y1),
+    compare(Delta, D2, D1).
+
+shootLaserAndRotate(_, _, _, 0, LastHit, LastHit):-!.
+shootLaserAndRotate(Position, [Ray|SortedRays], Asteroids, Count, LastHit, XHit):-
+    shoot(Position, Ray, Asteroids, NewAsteroids, Hit)
+    -> append(SortedRays, [Ray], NewSortedRays), NewCount is Count - 1, shootLaserAndRotate(Position, NewSortedRays, NewAsteroids, NewCount, Hit, XHit)
+    ;  append(SortedRays, [Ray], NewSortedRays), shootLaserAndRotate(Position, NewSortedRays, Asteroids, Count, LastHit, XHit).
+
+shoot(coords(X, Y), Direction, Asteroids, NewAsteroids, Hit):-
+    (X=<36, Y=<36, X>=0, Y>=0)
+    -> shootInBounds(coords(X,Y), Direction, Asteroids, NewAsteroids, Hit)
+    ;  fail.
+
+shootInBounds(coords(X,Y),direction(DiffX, DiffY), Asteroids, NewAsteroids, Hit) :-
+    NewX is X + DiffX,
+    NewY is Y + DiffY,
+    PossibleHit = coords(NewX, NewY),
+    (member(PossibleHit, Asteroids) 
+    -> (Hit = PossibleHit, delete(Asteroids, PossibleHit, NewAsteroids))
+    ;  shoot(PossibleHit, direction(DiffX, DiffY), Asteroids, NewAsteroids, Hit)).
+
+bestAsteroid([], BestAsteroid, BestAsteroid, Count, Count, Rays, Rays).
+bestAsteroid([visible(Head, FilteredRaysToOtherAsteroids)|VisibleAsteroidsByAsteroid], BestAsteroid, BestAsteroidSoFar, Count, CountOut, Rays, RaysOut) :-
     length(FilteredRaysToOtherAsteroids, VisibleAsteroidsCount),
     VisibleAsteroidsCount > Count 
-        -> bestAsteroid(VisibleAsteroidsByAsteroid, BestAsteroid, Head, VisibleAsteroidsCount, CountOut)
-        ;  bestAsteroid(VisibleAsteroidsByAsteroid, BestAsteroid, BestAsteroidSoFar, Count, CountOut).
+        -> bestAsteroid(VisibleAsteroidsByAsteroid, BestAsteroid, Head, VisibleAsteroidsCount, CountOut, FilteredRaysToOtherAsteroids, RaysOut)
+        ;  bestAsteroid(VisibleAsteroidsByAsteroid, BestAsteroid, BestAsteroidSoFar, Count, CountOut, Rays, RaysOut).
 
-
-rayCasting([], _, NewUniqueRaysToOtherAsteroidsByAsteroid) :- NewUniqueRaysToOtherAsteroidsByAsteroid = [].
+rayCasting([], _, _) :- !.
 rayCasting([Head|Tail], Asteroids, NewUniqueRaysToOtherAsteroidsByAsteroid) :-
     raysToAllOtherAsteroids(Head, Asteroids, RaysToOtherAsteroids),
     filterHiddenAsteroids(RaysToOtherAsteroids, UniqueRaysToOtherSatellites),
     rayCasting(Tail, Asteroids, UniqueRaysToOtherAsteroidsByAsteroid),
     append([visible(Head, UniqueRaysToOtherSatellites)], UniqueRaysToOtherAsteroidsByAsteroid, NewUniqueRaysToOtherAsteroidsByAsteroid).
 
-raysToAllOtherAsteroids(_, [], NewRaysToOtherAsteroids) :- NewRaysToOtherAsteroids = [].
+raysToAllOtherAsteroids(_, [], _) :- !.
 raysToAllOtherAsteroids(Asteroid, [OtherAsteroid|OtherAsteroids], NewRaysToOtherAsteroids) :-
+    raysToAllOtherAsteroids(Asteroid, OtherAsteroids, RaysToOtherAsteroids),   
     coords(OtherAsteroidX, OtherAsteroidY) = OtherAsteroid,
     coords(AsteroidX, AsteroidY) = Asteroid,
-    raysToAllOtherAsteroids(Asteroid, OtherAsteroids, RaysToOtherAsteroids),
     DiffX is OtherAsteroidX-AsteroidX,
     DiffY is OtherAsteroidY-AsteroidY,
-    append([direction(DiffX, DiffY)], RaysToOtherAsteroids, NewRaysToOtherAsteroids).
+    appendIfNotPointZero(direction(DiffX, DiffY), RaysToOtherAsteroids, NewRaysToOtherAsteroids).
+
+appendIfNotPointZero(direction(0,0), RaysToOtherAsteroids, RaysToOtherAsteroids):-!.
+appendIfNotPointZero(Direction, RaysToOtherAsteroids, NewRaysToOtherAsteroids) :-
+    append([Direction], RaysToOtherAsteroids, NewRaysToOtherAsteroids).
 
 filterHiddenAsteroids(Rays, UniqueRays) :-
     maplist(normalizeRay, Rays, NormalizedRays),
     list_to_set(NormalizedRays, UniqueRays).
 
-addRayIfUnique(Ray, [], NewUniqueRaysToOtherAsteroids) :-
-    NewUniqueRaysToOtherAsteroids = [Ray].
 addRayIfUnique(Ray, UniqeRaysToOtherAsteroids, NewUniqueRaysToOtherAsteroids) :-
     (not(member(Ray, UniqeRaysToOtherAsteroids); Ray = direction(0,0))) -> append(Ray, UniqeRaysToOtherAsteroids, NewUniqueRaysToOtherAsteroids);true.
 
@@ -100,10 +137,3 @@ writePrettyLine([Head|Tail]) :-
 
 writeChar(46) :- write(".").
 writeChar(35) :- write("#").
-
-writeTuples([]) :- nl.
-writeTupels([Head|Tail]) :- 
-    writeTupel(Head),
-    writeTuples(Tail).
-
-writeTupel(X) :- format("~w,", X).
